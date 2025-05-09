@@ -25,10 +25,25 @@
     .skill-level button:hover { background:#ddd; }
     button { border:1px solid #888; border-radius:3px; padding:4px 8px; background:#fff; cursor:pointer; }
     button:hover { background:#ddd; }
-    .attribute { flex:1 1 20%; min-width:80px; }
-    .attributes, .shadow-attributes { display:flex; flex-wrap:wrap; gap:1em; }
+    .attribute { flex:1 1 30%; min-width:80px; margin-bottom:1em; }
+    .attributes-row { display:flex; flex-wrap:wrap; gap:1em; margin-bottom:1em; }
     #controls { text-align:center; margin-bottom:1em; }
     #controls button { margin:0 5px; }
+    .save-notification { 
+      position: fixed; 
+      top: 20px; 
+      right: 20px; 
+      background: #4CAF50; 
+      color: white; 
+      padding: 10px 20px; 
+      border-radius: 4px; 
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2); 
+      opacity: 0; 
+      transition: opacity 0.3s; 
+    }
+    .save-notification.show { 
+      opacity: 1; 
+    }
   </style>
 </head>
 <body>
@@ -47,9 +62,9 @@
       <h2>Charakter Informationen</h2>
       <div class="field-group"><label for="name">Name</label><input id="name" placeholder="Charaktername"></div>
       <div class="field-group"><label for="race">Rasse</label><input id="race" placeholder="z.B. Elf, Mensch, Zwerg..."></div>
-      <div class="field-group hidden" id="subrace-container"><label for="subrace">Unterrasse</label><select id="subrace"></select></div>
+      <div class="field-group"><label for="subrace">Unterrasse</label><input id="subrace" placeholder="z.B. Hoch-Elf, Waldelf..."></div>
       <div class="field-group"><label for="class">Klasse / Profession</label><input id="class" placeholder="z.B. Magier, Krieger, Decker..."></div>
-      <div class="field-group hidden" id="subclass-container"><label for="subclass">Unterklasse / Spezialisierung</label><select id="subclass"></select></div>
+      <div class="field-group"><label for="subclass">Unterklasse / Spezialisierung</label><input id="subclass" placeholder="z.B. Elementarmagier, Kampf-Samurai..."></div>
       <div class="field-group"><label for="level">Level / Rating</label><input type="number" id="level" min="1" placeholder="z.B. 5"></div>
       <div class="field-group"><label for="experience">Erfahrungspunkte / XP</label><input type="number" id="experience" min="0" placeholder="z.B. 1500"></div>
     </section>
@@ -57,10 +72,12 @@
     <!-- D&D Attribute -->
     <section id="dnd-attributes">
       <h2>D&D Attribute</h2>
-      <div class="attributes">
+      <div class="attributes-row">
         <div class="field-group attribute"><label for="strength">Stärke</label><input type="number" id="strength" min="0" max="30" placeholder="z.B. 12"></div>
         <div class="field-group attribute"><label for="dexterity">Geschicklichkeit</label><input type="number" id="dexterity" min="0" max="30" placeholder="z.B. 14"></div>
         <div class="field-group attribute"><label for="constitution">Konstitution</label><input type="number" id="constitution" min="0" max="30" placeholder="z.B. 10"></div>
+      </div>
+      <div class="attributes-row">
         <div class="field-group attribute"><label for="intelligence">Intelligenz</label><input type="number" id="intelligence" min="0" max="30" placeholder="z.B. 13"></div>
         <div class="field-group attribute"><label for="wisdom">Weisheit</label><input type="number" id="wisdom" min="0" max="30" placeholder="z.B. 11"></div>
         <div class="field-group attribute"><label for="charisma">Charisma</label><input type="number" id="charisma" min="0" max="30" placeholder="z.B. 16"></div>
@@ -70,10 +87,12 @@
     <!-- Shadowrun Attribute -->
     <section id="shadowrun-attributes">
       <h2>ShadowRun Attribute</h2>
-      <div class="shadow-attributes">
+      <div class="attributes-row">
         <div class="field-group attribute"><label for="reaction">Reaktion</label><input type="number" id="reaction" min="0" max="10" placeholder="z.B. 4"></div>
         <div class="field-group attribute"><label for="intuition">Intuition</label><input type="number" id="intuition" min="0" max="10" placeholder="z.B. 5"></div>
         <div class="field-group attribute"><label for="body">Körper</label><input type="number" id="body" min="0" max="10" placeholder="z.B. 3"></div>
+      </div>
+      <div class="attributes-row">
         <div class="field-group attribute"><label for="edge">Edge</label><input type="number" id="edge" min="0" max="10" placeholder="z.B. 2"></div>
         <div class="field-group attribute"><label for="magic">Magie</label><input type="number" id="magic" min="0" max="10" placeholder="z.B. 6"></div>
         <div class="field-group attribute"><label for="resonance">Resonanz</label><input type="number" id="resonance" min="0" max="10" placeholder="z.B. 1"></div>
@@ -107,41 +126,29 @@
     </section>
   </div>
 
+  <div id="save-notification" class="save-notification">Gespeichert 👍</div>
+
   <script>
     const $ = id => document.getElementById(id);
-    const subraces = { Elf:["Hoch-Elf","Waldelf","Dunkelelf"], Zwerg:["Bergzwerg","Flachzwerg"], Ork:["Urban-Ork","Wild-Ork"], Troll:["Stadt-Troll","Wald-Troll"] };
-    const subclasses = { Magier:["Elementarmagier","Schamanischer Magier","Cyber-Magier"], "Straßen-Samurai":["Kampf-Samurai","Schatten-Samurai"] };
-    function getMatchingKey(input, mapping) {
-      const li = input.trim().toLowerCase();
-      for (const k in mapping) if (k.toLowerCase() === li) return k;
-      return null;
-    }
-    function updateSubrace() {
-      const m = getMatchingKey($("race").value, subraces);
-      $("subrace").innerHTML = "";
-      if (m) {
-        $("subrace").add(new Option("-- Bitte wählen --", ""));
-        subraces[m].forEach(o => $("subrace").add(new Option(o, o)));
-        $("subrace-container").classList.remove("hidden");
-      } else $("subrace-container").classList.add("hidden");
-    }
-    function updateSubclass() {
-      const m = getMatchingKey($("class").value, subclasses);
-      $("subclass").innerHTML = "";
-      if (m) {
-        $("subclass").add(new Option("-- Bitte wählen --", ""));
-        subclasses[m].forEach(o => $("subclass").add(new Option(o, o)));
-        $("subclass-container").classList.remove("hidden");
-      } else $("subclass-container").classList.add("hidden");
-    }
-    $("race").addEventListener("blur", updateSubrace);
-    $("class").addEventListener("blur", updateSubclass);
+    
+    // Auto-resize textareas
     document.querySelectorAll("textarea").forEach(t => t.addEventListener("input", e => {
       e.target.style.height = "auto";
       e.target.style.height = e.target.scrollHeight + "px";
     }));
 
-    function createItem(text) {
+    // Show notification
+    function showNotification(message) {
+      const notification = $("save-notification");
+      notification.textContent = message;
+      notification.classList.add("show");
+      setTimeout(() => {
+        notification.classList.remove("show");
+      }, 2000);
+    }
+
+    // Create skill/special item
+    function createItem(text, level = 1) {
       const div = document.createElement("div");
       div.className = "skill-item";
       const left = document.createElement("div");
@@ -168,7 +175,7 @@
       const minus = document.createElement("button");
       minus.textContent = "-";
       const lvl = document.createElement("input");
-      lvl.type = "number"; lvl.min = "1"; lvl.value = "1"; lvl.readOnly = true;
+      lvl.type = "number"; lvl.min = "1"; lvl.value = level; lvl.readOnly = true;
       const plus = document.createElement("button");
       plus.textContent = "+";
 
@@ -180,6 +187,7 @@
       return div;
     }
 
+    // Add skills and specials with Enter key
     $("skill-input").addEventListener("keydown", e => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -188,6 +196,7 @@
         $("skill-input").value = "";
       }
     });
+    
     $("special-input").addEventListener("keydown", e => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -197,12 +206,17 @@
       }
     });
 
+    // Get form state for saving
     function getFormState() {
       return {
         info: {
-          name: $("name").value, race: $("race").value, subrace: $("subrace").value,
-          class: $("class").value, subclass: $("subclass").value,
-          level: $("level").value, experience: $("experience").value
+          name: $("name").value, 
+          race: $("race").value, 
+          subrace: $("subrace").value,
+          class: $("class").value, 
+          subclass: $("subclass").value,
+          level: $("level").value, 
+          experience: $("experience").value
         },
         attrs: ["strength","dexterity","constitution","intelligence","wisdom","charisma","reaction","intuition","body","edge","magic","resonance"]
           .reduce((acc, id) => (acc[id] = $(id).value, acc), {}),
@@ -219,37 +233,81 @@
       };
     }
 
+    // Set form state when loading
     function setFormState(st) {
-      Object.entries(st.info).forEach(([k,v]) => { if($(k)) $(k).value = v || ""; });
-      updateSubrace(); updateSubclass();
-      Object.entries(st.attrs).forEach(([k,v]) => { if($(k)) $(k).value = v; });
+      // Set basic info fields
+      Object.entries(st.info).forEach(([k,v]) => { 
+        if($(k)) $(k).value = v || ""; 
+      });
+      
+      // Set attributes
+      Object.entries(st.attrs).forEach(([k,v]) => { 
+        if($(k)) $(k).value = v || ""; 
+      });
+      
+      // Set skills
       $("skills-container").innerHTML = "";
-      st.skills.forEach(s => { const i = createItem(s.name); i.querySelector("input").value = s.level; $("skills-container").append(i); });
+      if (st.skills && st.skills.length) {
+        st.skills.forEach(s => { 
+          const i = createItem(s.name, s.level); 
+          $("skills-container").append(i); 
+        });
+      }
+      
+      // Set specials
       $("specials-container").innerHTML = "";
-      st.specials.forEach(s => { const i = createItem(s.name); i.querySelector("input").value = s.level; $("specials-container").append(i); });
+      if (st.specials && st.specials.length) {
+        st.specials.forEach(s => { 
+          const i = createItem(s.name, s.level); 
+          $("specials-container").append(i); 
+        });
+      }
+      
+      // Set inventory and notes
       $("inventory").value = st.inventory || "";
       $("notes").value = st.notes || "";
+      
+      // Trigger resize for textareas
+      document.querySelectorAll("textarea").forEach(t => {
+        t.style.height = "auto";
+        t.style.height = t.scrollHeight + "px";
+      });
     }
 
+    // Save character
     $("save-btn").onclick = () => {
       localStorage.setItem("characterSheet", JSON.stringify(getFormState()));
-      alert("Gespeichert 👍");
+      showNotification("Gespeichert 👍");
     };
+    
+    // Load character
     $("load-btn").onclick = () => {
       const data = localStorage.getItem("characterSheet");
       if (!data) return alert("Kein gespeicherter Bogen gefunden.");
-      setFormState(JSON.parse(data));
-      alert("Geladen ✅");
+      try {
+        setFormState(JSON.parse(data));
+        showNotification("Geladen ✅");
+      } catch (err) {
+        console.error("Fehler beim Laden:", err);
+        alert("Fehler beim Laden des Charakterbogens.");
+      }
     };
+    
+    // Export character
     $("export-btn").onclick = () => {
+      const characterName = $("name").value.trim() || "charakterbogen";
+      const filename = characterName.toLowerCase().replace(/\s+/g, "-") + ".json";
+      
       const blob = new Blob([JSON.stringify(getFormState(), null, 2)], {type: "application/json"});
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "charakterbogen.json";
+      a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
     };
+    
+    // Import character
     $("import-btn").onclick = () => $("import-input").click();
     $("import-input").onchange = e => {
       const file = e.target.files[0];
@@ -259,12 +317,94 @@
         try {
           const data = JSON.parse(e.target.result);
           setFormState(data);
-        } catch {
+          showNotification("Import erfolgreich ✅");
+        } catch (err) {
+          console.error("Fehler beim Import:", err);
           alert("Fehler beim Laden der Datei.");
         }
       };
       reader.readAsText(file);
     };
+
+    // Add datalist support for subraces and subclasses
+    const subraces = {
+      "Elf": ["Hoch-Elf", "Waldelf", "Dunkelelf"],
+      "Zwerg": ["Bergzwerg", "Flachzwerg"],
+      "Ork": ["Urban-Ork", "Wild-Ork"],
+      "Troll": ["Stadt-Troll", "Wald-Troll"]
+    };
+    
+    const subclasses = {
+      "Magier": ["Elementarmagier", "Schamanischer Magier", "Cyber-Magier"],
+      "Straßen-Samurai": ["Kampf-Samurai", "Schatten-Samurai"]
+    };
+    
+    // Create datalists for subraces and subclasses
+    function createDatalist(id, options) {
+      // Remove existing datalist if it exists
+      const existingDatalist = document.getElementById(id);
+      if (existingDatalist) existingDatalist.remove();
+      
+      // Create new datalist
+      const datalist = document.createElement("datalist");
+      datalist.id = id;
+      
+      // Add options
+      options.forEach(option => {
+        const opt = document.createElement("option");
+        opt.value = option;
+        datalist.appendChild(opt);
+      });
+      
+      // Add to document
+      document.body.appendChild(datalist);
+    }
+    
+    // Update subrace options when race changes
+    $("race").addEventListener("input", e => {
+      const race = e.target.value.trim();
+      const options = subraces[race] || [];
+      createDatalist("subrace-options", options);
+    });
+    
+    // Update subclass options when class changes
+    $("class").addEventListener("input", e => {
+      const className = e.target.value.trim();
+      const options = subclasses[className] || [];
+      createDatalist("subclass-options", options);
+    });
+    
+    // Add datalist attributes to inputs
+    $("subrace").setAttribute("list", "subrace-options");
+    $("subclass").setAttribute("list", "subclass-options");
+    
+    // Create initial empty datalists
+    createDatalist("subrace-options", []);
+    createDatalist("subclass-options", []);
+
+    // Check for saved character on page load
+    window.addEventListener("DOMContentLoaded", () => {
+      const data = localStorage.getItem("characterSheet");
+      if (data) {
+        try {
+          const parsedData = JSON.parse(data);
+          setFormState(parsedData);
+          
+          // Update datalists based on loaded data
+          if (parsedData.info.race) {
+            const options = subraces[parsedData.info.race] || [];
+            createDatalist("subrace-options", options);
+          }
+          
+          if (parsedData.info.class) {
+            const options = subclasses[parsedData.info.class] || [];
+            createDatalist("subclass-options", options);
+          }
+        } catch (err) {
+          console.error("Fehler beim automatischen Laden:", err);
+        }
+      }
+    });
   </script>
 </body>
 </html>
